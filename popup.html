@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Ze'ev Aviner</title>
+
+		<style>
+			body {
+				width: 300px;
+			}
+		</style>
+	</head>
+	<body>
+		<label for="posts">No of posts:</label>
+		<select name="posts" id="posts">
+			<option value="1">1</option>
+			<option value="5">5</option>
+			<option value="10">10</option>
+			<option value="25">25</option>
+			<option value="50">50</option>
+			<option value="100">100</option>
+		</select>
+		<br />
+
+		<label for="interval">Run every:</label>
+		<select name="interval" id="interval">
+			<option value="1">1s</option>
+			<option value="5">5s</option>
+			<option value="10">10s</option>
+			<option value="25">15s</option>
+			<option value="50">30s</option>
+			<option value="100">60s</option>
+		</select>
+		<br />
+		<button>Fetch Posts</button>
+		<script
+			async
+			defer
+			crossorigin="anonymous"
+			src="https://connect.facebook.net/en_US/sdk.js"
+		></script>
+	</body>
+</html>

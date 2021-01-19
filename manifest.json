@@ -1,0 +1,21 @@
+{
+	"manifest_version": 2,
+	"name": "Ze'ev Aviner",
+	"version": "1.0",
+	"description": "Extension to fetch posts from facebook with groups api and store details in google sheet",
+	"icons": {
+		"16": "./16.png",
+		"48": "./48.png",
+		"128": "./128.png"
+	},
+	"browser_action": {
+		"default_icon": "./16.png",
+		"default_popup": "./popup.html"
+	},
+	"background": {
+		"scripts": ["./background.js"],
+		"persistent": false
+	},
+	"permissions": ["storage", "identity"],
+	"content_security_policy": "script-src  blob: filesystem: 'self' https://connect.facebook.net/en_US/sdk.js; object-src 'self'"
+}
