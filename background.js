@@ -1,20 +1,67 @@
-const options = {
-	url: `https://www.facebook.com/v9.0/dialog/oauth?client_id=832160787350025&redirect_uri=https://agladpmnpjheedkebempldldhjnadakl.chromiumapp.org/&response_type=token&scope=public_profile,email,publish_to_groups,groups_access_member_info`,
-	interactive: true
-};
+// const options = {
+// 	url: `https://www.facebook.com/v9.0/dialog/oauth?client_id=832160787350025&redirect_uri=https://agladpmnpjheedkebempldldhjnadakl.chromiumapp.org/&response_type=token&scope=public_profile,email,publish_to_groups,groups_access_member_info`,
+// 	interactive: true
+// };
 
+chrome.identity.getAuthToken({ interactive: true }, getSheetData);
+
+function getSheetData(token) {
+	let init = {
+		method: 'GET',
+		async: true,
+		headers: {
+			Authorization: 'Bearer ' + token,
+			'Content-Type': 'application/json'
+		},
+		contentType: 'json'
+	};
+
+	// for 1st col only 'https://sheets.googleapis.com/v4/spreadsheets/1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ/values/sheet1!A1%3AA?majorDimension=COLUMNS&valueRenderOption=FORMATTED_VALUE&key=[YOUR_API_KEY]'
+
+	fetch(
+		'https://sheets.googleapis.com/v4/spreadsheets/1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ/values/sheet1?key=AIzaSyCyis6s2JvCMCt1vEzuE7GDvT5LVn_8aSs',
+		init
+	)
+		.then(response => response.json())
+		.then(function (data) {
+			console.log(data);
+		});
+
+	let post_init = {
+		method: 'POST',
+		async: true,
+		headers: {
+			Authorization: 'Bearer ' + token,
+			'Content-Type': 'application/json'
+		},
+		contentType: 'json',
+		body: JSON.stringify({
+			values: [
+				['asda', 'asdasd'],
+				['123', '456']
+			]
+		})
+	};
+
+	fetch(
+		'https://sheets.googleapis.com/v4/spreadsheets/1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ/values/sheet1:append?valueInputOption=RAW&key=AIzaSyCyis6s2JvCMCt1vEzuE7GDvT5LVn_8aSs',
+		post_init
+	)
+		.then(response => response.json())
+		.then(data => console.log(data));
+}
 // ${chrome.identity.getRedirectURL('app')}
 // chrome.identity.clearAllCachedAuthTokens(() => console.log('cleared'));
 console.log(chrome.identity.getRedirectURL());
 // 'https://www.facebook.com/dialog/oauth?client_id=832160787350025&response_type=token&redirect_uri=' +
 // chrome.identity.getRedirectURL(),
 
-window.addEventListener('load', function () {
-	chrome.identity.launchWebAuthFlow(options, url => {
-		const access_token = url.split('#')[1].split('&')[0].split('=')[1];
-		console.log(access_token);
-	});
-});
+// window.addEventListener('load', function () {
+// 	chrome.identity.launchWebAuthFlow(options, url => {
+// 		const access_token = url.split('#')[1].split('&')[0].split('=')[1];
+// 		console.log(access_token);
+// 	});
+// });
 
 // .then(function (url) {
 // 			console.log(url);
