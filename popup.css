@@ -1,0 +1,75 @@
+* {
+	margin: 0;
+	box-sizing: border-box;
+}
+
+body {
+	width: 300px;
+}
+
+.container {
+	padding: 10px;
+}
+
+.container .header {
+	display: none;
+}
+
+.container .header.show {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+
+.container .header p {
+	font-size: 18px;
+}
+.container .header button {
+	cursor: pointer;
+	font-size: 14px;
+	padding: 5px 10px;
+	background-color: rgb(24, 119, 242);
+	color: white;
+	text-align: center;
+	border: none;
+}
+.container .form-control {
+	display: flex;
+	gap: 5px;
+	margin-bottom: 5px;
+}
+
+.container .form-control .form-field {
+	flex: 1 1 0;
+}
+
+.container .form-control label {
+	font-size: 18px;
+	/* margin-right: 10px; */
+}
+
+.container .form-control select {
+	background-color: #e7e2e2;
+	border: 0;
+	border-radius: 5px;
+	font-size: 14px;
+	width: 100%;
+	padding: 5px 15px 5px 15px;
+	appearance: auto;
+}
+
+.container .form-control .button {
+	display: none;
+}
+.container .form-control .button.show {
+	display: block;
+	cursor: pointer;
+	width: 100%;
+	margin-top: 20px;
+	font-size: 14px;
+	padding: 10px;
+	background-color: rgb(24, 119, 242);
+	color: white;
+	text-align: center;
+	border: none;
+}
