@@ -3,7 +3,7 @@ const authorizeFacebook = document.querySelector('#authorize-facebook');
 const postsCount = document.querySelector('#posts-count');
 const interval = document.querySelector('#interval');
 const appStatus = document.querySelector('#app-status');
-
+const updateMessage = document.querySelector('.update-message');
 window.fbAsyncInit = function () {
 	FB.init({
 		appId: '416734862717444',
@@ -24,8 +24,6 @@ async function getAppStatus() {
 			paragraph.innerText = 'App status is ok.';
 			paragraph.classList.add('ok');
 			appStatus.appendChild(paragraph);
-
-			console.log(appStatus.childNodes);
 		} else {
 			authorizeFacebook.classList.add('show');
 			const paragraph = document.createElement('p');
@@ -87,7 +85,10 @@ async function updateSettings(postsCount, interval) {
 			}
 		);
 		if (response.data.message === 'updated') {
-			console.log('asdasd');
+			updateMessage.classList.add('show');
+			setInterval(() => {
+				updateMessage.classList.remove('show');
+			}, 3000);
 		}
 	} catch (error) {}
 }
