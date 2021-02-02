@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>extFacebook Api</title>
+		<link rel="stylesheet" href="./style.css" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<div class="app-container">
+			<div class="app-status" id="app-status">
+				<!-- <p class="ok">App status is ok.</p>
+				<p class="error">User Token expired. Please update token.</p> -->
+			</div>
+			<div class="settings">
+				<div class="form-control">
+					<div class="form-field">
+						<label for="posts">No of posts:</label>
+					</div>
+					<div class="form-field">
+						<select name="posts-count" id="posts-count">
+							<option value="10">10</option>
+							<option value="25">25</option>
+							<option value="50">50</option>
+							<option value="100">100</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="form-control">
+					<div class="form-field">
+						<label for="interval">Run every:</label>
+					</div>
+					<div class="form-field">
+						<select name="interval" id="interval">
+							<option value="60">1 min</option>
+							<option value="300">5 min</option>
+							<option value="600">10 min</option>
+							<option value="1800">30 min</option>
+							<option value="3600">1 hour</option>
+						</select>
+					</div>
+				</div>
+
+				<!-- <div class="form-control">
+					<div class="form-field">
+						<input type="text" placeholder="From" />
+					</div>
+					<div class="form-field">
+						<input type="text" placeholder="To" />
+					</div>
+					<div class="form-field">
+						<select name="" id="">
+							<option value="">Sheet 1</option>
+							<option value="">Sheet 2</option>
+						</select>
+					</div>
+				</div>
+				<div class="form-control">
+					<div class="form-field">
+						<input type="text" placeholder="From" />
+					</div>
+					<div class="form-field">
+						<input type="text" placeholder="To" />
+					</div>
+					<div class="form-field">
+						<select name="" id="">
+							<option value="">Sheet 1</option>
+							<option value="">Sheet 2</option>
+						</select>
+					</div>
+				</div> -->
+
+				<div class="form-control">
+					<button class="button" id="update-settings">Update Settings</button>
+					<button class="button" id="authorize-facebook">Update Token</button>
+				</div>
+			</div>
+
+			<!-- <div class="logs"></div> -->
+
+			<!-- <div class="group-list-container">
+				<div class="group-list">
+					<p>Sheet 1</p>
+					<div class="list-item" draggable="true">
+						<p>Group 1</p>
+					</div>
+				</div>
+
+				<div class="group-list">
+					<p>Sheet 2</p>
+					<div class="list-item" draggable="true">
+						<p>Group 2</p>
+					</div>
+				</div>
+
+				<div class="group-list">
+					<p>Sheet 3</p>
+					<div class="list-item" draggable="true">
+						<p>Group 3</p>
+					</div>
+				</div>
+			</div> -->
+		</div>
+		<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+		<script
+			async
+			defer
+			crossorigin="anonymous"
+			src="https://connect.facebook.net/en_US/sdk.js"
+		></script>
+		<script src="./app.js"></script>
+	</body>
+</html>

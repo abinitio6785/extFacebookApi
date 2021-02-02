@@ -1,4 +1,2 @@
-/.env
-/cred.json
-/node_modules
-/logs
+.vscode
+temp

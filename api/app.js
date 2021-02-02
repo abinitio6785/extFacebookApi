@@ -1,8 +1,18 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 const { google } = require('googleapis');
 const axios = require('axios');
 const dotenv = require('dotenv').config();
 const logger = require('./logger');
+const fs = require('fs');
 
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+let access_token;
+let appInterval;
 const auth = new google.auth.GoogleAuth({
 	keyFile: './cred.json',
 	scopes: [
@@ -13,18 +23,25 @@ const auth = new google.auth.GoogleAuth({
 		'https://www.googleapis.com/auth/spreadsheets.readonly'
 	]
 });
-
 const sheets = google.sheets({ version: 'v4', auth });
 
 function fetchPosts() {
 	return new Promise(async (resolve, reject) => {
 		try {
-			const access_token = process.env.fb_access_token;
-			const response = await axios.get(
-				`https://graph.facebook.com/v9.0/me/groups?fields=feed.limit(50)%7Bstatus_type%2Cdescription%2Cfrom%2Cid%2Cmessage%2Cname%2Cstory%2Ctype%2Cpermalink_url%2Ccreated_time%2Cattachments%7Bmedia%2Cmedia_type%2Csubattachments%7D%2Ctarget%2Clink%2Csource%2Cupdated_time%2Cobject_id%2Cprivacy%7D%2Cname&limit=50&access_token=${access_token}`
-			);
+			fs.readFile('./settings.json', 'utf8', async (err, data) => {
+				if (err) {
+					logger.error('Settings file not found. Closing app');
+					clearInterval(appInterval);
+					return;
+				}
 
-			resolve(response.data);
+				const settings = JSON.parse(data);
+				const response = await axios.get(
+					`https://graph.facebook.com/v9.0/me/groups?fields=feed.limit(${settings.settings.postCount})%7Bstatus_type%2Cdescription%2Cfrom%2Cid%2Cmessage%2Cname%2Cstory%2Ctype%2Cpermalink_url%2Ccreated_time%2Cattachments%7Bmedia%2Cmedia_type%2Csubattachments%7D%2Ctarget%2Clink%2Csource%2Cupdated_time%2Cobject_id%2Cprivacy%7D%2Cname&limit=100&access_token=${access_token}`
+				);
+
+				resolve(response.data);
+			});
 		} catch (error) {
 			reject(error);
 		}
@@ -192,11 +209,160 @@ async function appHandler() {
 			logMessage('No group or feed data available.');
 		}
 	} catch (error) {
-		clearInterval(interval);
+		clearInterval(appInterval);
 		const message = error.response.data.error.message;
-		console.log(message);
 		logger.error(message + '. Stopping Posts Fetching');
 	}
 }
 
-const interval = setInterval(appHandler, 60 * 1000);
+function appInitializer() {
+	fs.readFile('./settings.json', 'utf8', async (err, data) => {
+		if (err) {
+			logger.error('Setting file not found. App not started');
+			return;
+		}
+		const settings = JSON.parse(data);
+		if (!settings.auth_token) {
+			logger.error('Auth token not found. App not started');
+		} else {
+			access_token = settings.auth_token;
+			const interval = parseInt(settings.settings.interval);
+			appInterval = setInterval(appHandler, interval * 1000);
+		}
+	});
+}
+
+// sheets.spreadsheets.values.batchGet(
+// 	{
+// 		spreadsheetId: '1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ',
+// 		ranges: ['sheet1!A2:A', 'sheet2!A2:A'],
+// 		majorDimension: 'COLUMNS'
+// 	},
+// 	(err, res) => {
+// 		if (err) {
+// 			console.log(err);
+// 		} else {
+// 			const rows = res.data;
+// 			rows.valueRanges.forEach(valueRange => {
+// 				console.log(valueRange);
+// 				console.log(valueRange.values);
+// 			});
+// 		}
+// 	}
+// );
+
+// sheets.spreadsheets.get(
+// 	{ spreadsheetId: process.env.googlesheet_id },
+// 	(err, res) => {
+// 		if (err) {
+// 			console.log(err);
+// 		} else {
+// 			console.log(res.data.sheets);
+// 		}
+// 	}
+// );
+
+// EAAF7BKV1MgQBAASyjM9LQjbLAJymAEktZCkHuChsenTfpjIG8CIQyA0cryszZBS7oYMfZBRelMA3KNNEUZBSADLxVXXZCGkZB1WPw5ZA1uGLYtxIbI2qHRCPOnAsFODcUHzhZAH3ncVSUEBiPrpbEniejT9E4IK8IaLdB1aKTJL2SoruQlNv5v0Facz8hboZBhw0ZD
+
+app.get('/appStatus', (req, res) => {
+	fs.readFile('./settings.json', 'utf8', async (err, data) => {
+		if (err) {
+			res.send({ status: 'not active' });
+			return;
+		}
+		const settings = JSON.parse(data);
+		if (!settings.auth_token) {
+			res.send({ status: 'not active' });
+		} else {
+			try {
+				const access_token = settings.auth_token;
+				const response = await axios.get(
+					`https://graph.facebook.com/v9.0/me?fields=id%2Cname&&access_token=${access_token}`
+				);
+
+				res.send({ status: 'active', name: response.data.name });
+			} catch (error) {
+				res.send({ status: 'not active' });
+			}
+		}
+	});
+});
+
+app.post('/updateToken', (req, res) => {
+	if (!req.body.token) {
+		res.send({ message: 'not updated' });
+	} else {
+		fs.readFile('./settings.json', 'utf8', async (err, data) => {
+			if (err) {
+				res.send({ message: 'not updated' });
+				return;
+			}
+
+			const settings = JSON.parse(data);
+			const newSettings = {
+				auth_token: req.body.token,
+				settings: {
+					postCount: settings.settings.postCount,
+					interval: settings.settings.interval
+				}
+			};
+
+			fs.writeFile(
+				'settings.json',
+				JSON.stringify(newSettings),
+				function (err) {
+					if (err) {
+						res.send({ message: 'not updated' });
+						return;
+					}
+					logMessage('Auth Token Updated');
+					clearInterval(appInterval);
+					appInitializer();
+					res.send({ message: 'updated' });
+				}
+			);
+		});
+	}
+});
+
+app.post('/updateSettings', (req, res) => {
+	if (!req.body.interval || !req.body.postsCount) {
+		res.send({ message: 'not updated' });
+	} else {
+		fs.readFile('./settings.json', 'utf8', async (err, data) => {
+			if (err) {
+				console.log(err);
+				res.send({ message: 'not updated' });
+				return;
+			}
+			const settings = JSON.parse(data);
+			const newSettings = {
+				auth_token: settings.auth_token,
+				settings: {
+					postCount: req.body.postsCount,
+					interval: req.body.interval
+				}
+			};
+
+			fs.writeFile(
+				'./settings.json',
+				JSON.stringify(newSettings),
+				function (err) {
+					if (err) {
+						res.send({ message: 'not updated' });
+						return;
+					}
+					logMessage('App settings updated');
+					clearInterval(appInterval);
+					appInitializer();
+					res.send({ message: 'updated' });
+				}
+			);
+		});
+	}
+});
+
+app.listen(3000, () => {
+	console.log('App listening on port 3000!');
+	appInitializer();
+});
