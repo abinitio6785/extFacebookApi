@@ -17,7 +17,9 @@ window.fbAsyncInit = function () {
 
 async function getAppStatus() {
 	try {
-		const response = await axios.get('https://444f24c2f44e.ngrok.io/appStatus');
+		const response = await axios.get(
+			'https://extfacebookapi.stagingwebsites.info/appStatus'
+		);
 		if (response.data.status === 'active') {
 			updateSetting.classList.add('show');
 			const paragraph = document.createElement('p');
@@ -58,7 +60,7 @@ authorizeFacebook.addEventListener('click', e => {
 async function updateToken(token) {
 	try {
 		const response = await axios.post(
-			'https://444f24c2f44e.ngrok.io/updateToken',
+			'https://extfacebookapi.stagingwebsites.info/updateToken',
 			{
 				token
 			}
@@ -78,7 +80,7 @@ async function updateToken(token) {
 async function updateSettings(postsCount, interval) {
 	try {
 		const response = await axios.post(
-			'https://444f24c2f44e.ngrok.io/updateSettings',
+			'https://extfacebookapi.stagingwebsites.info/updateSettings',
 			{
 				postsCount,
 				interval
