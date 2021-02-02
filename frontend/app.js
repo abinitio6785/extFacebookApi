@@ -6,8 +6,8 @@ const appStatus = document.querySelector('#app-status');
 const updateMessage = document.querySelector('.update-message');
 const user = document.querySelector('#user');
 
-// const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
-const apiUrl = 'https://e31d2bc7fd65.ngrok.io/';
+const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
+// const apiUrl = 'https://e31d2bc7fd65.ngrok.io/';
 
 window.fbAsyncInit = function () {
 	FB.init({
