@@ -298,29 +298,38 @@ app.post('/updateToken', (req, res) => {
 				return;
 			}
 
-			const settings = JSON.parse(data);
-			const newSettings = {
-				auth_token: req.body.token,
-				settings: {
-					postCount: settings.settings.postCount,
-					interval: settings.settings.interval
-				}
-			};
+			try {
+				const settings = JSON.parse(data);
+				const access_token = req.body.token;
+				const response = await axios.get(
+					`https://graph.facebook.com/v9.0/me?fields=id%2Cname&&access_token=${access_token}`
+				);
 
-			fs.writeFile(
-				'settings.json',
-				JSON.stringify(newSettings),
-				function (err) {
-					if (err) {
-						res.send({ message: 'not updated' });
-						return;
+				const newSettings = {
+					auth_token: req.body.token,
+					settings: {
+						postCount: settings.settings.postCount,
+						interval: settings.settings.interval
 					}
-					logMessage('Auth Token Updated');
-					clearInterval(appInterval);
-					appInitializer();
-					res.send({ message: 'updated' });
-				}
-			);
+				};
+
+				fs.writeFile(
+					'settings.json',
+					JSON.stringify(newSettings),
+					function (err) {
+						if (err) {
+							res.send({ message: 'not updated' });
+							return;
+						}
+						logMessage('Auth Token Updated');
+						clearInterval(appInterval);
+						appInitializer();
+						res.send({ message: 'updated', name: response.data.name });
+					}
+				);
+			} catch (error) {
+				res.send({ status: 'not updated' });
+			}
 		});
 	}
 });
@@ -360,6 +369,39 @@ app.post('/updateSettings', (req, res) => {
 			);
 		});
 	}
+});
+
+app.post('/logout', (req, res) => {
+	fs.readFile('./settings.json', 'utf8', async (err, data) => {
+		if (err) {
+			console.log(err);
+			res.send({ message: 'not updated' });
+			return;
+		}
+		const settings = JSON.parse(data);
+		const newSettings = {
+			auth_token: '',
+			settings: {
+				postCount: settings.settings.postCount,
+				interval: settings.settings.interval
+			}
+		};
+
+		fs.writeFile(
+			'./settings.json',
+			JSON.stringify(newSettings),
+			function (err) {
+				if (err) {
+					res.send({ message: 'not updated' });
+					return;
+				}
+				logMessage('User Logged Out');
+				clearInterval(appInterval);
+				// appInitializer();
+				res.send({ message: 'logged out' });
+			}
+		);
+	});
 });
 
 app.listen(5078, () => {
