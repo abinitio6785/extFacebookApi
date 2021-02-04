@@ -32,6 +32,7 @@ async function getAppStatus() {
 			paragraph.classList.add(response.data.type);
 			appStatus.appendChild(paragraph);
 
+			sheetsListHeader.classList.add('show');
 			addUserField(response.data.name);
 			addSheetList(response.data.sheets);
 
