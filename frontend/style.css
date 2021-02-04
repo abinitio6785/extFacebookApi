@@ -1,17 +1,17 @@
 * {
 	margin: 0;
 	padding: 0;
+	box-sizing: border-box;
 }
 
 body {
-	box-sizing: border-box;
 	width: 100%;
 	background: #cee3e2;
 	font-family: 'Roboto', sans-serif;
 }
 
 .app-container {
-	margin: 20px auto;
+	margin: auto auto;
 	width: 80%;
 }
 
@@ -22,7 +22,6 @@ body {
 	color: white;
 	margin-bottom: 10px;
 	border-radius: 5px;
-	/* width: 50%; */
 }
 
 .app-container .update-message p {
@@ -33,7 +32,6 @@ body {
 	margin-bottom: 5px;
 	border-radius: 5px;
 	background-color: #0dcaf0;
-	/* width: 50%; */
 }
 
 .app-container .update-message {
@@ -47,21 +45,32 @@ body {
 .user {
 	display: flex;
 	justify-content: space-between;
-	width: 50%;
+	/* width: 50%; */
 	margin-bottom: 10px;
 	align-items: center;
 }
 
 .user .logout {
-	display: block;
 	cursor: pointer;
-	/* width: 100%; */
 	font-size: 14px;
 	padding: 10px 20px;
 	background-color: #dc3545;
 	color: white;
 	text-align: center;
 	border: none;
+	border-radius: 5px;
+}
+
+.user .add-sheet {
+	cursor: pointer;
+	padding: 10px 20px;
+	background-color: #0d6efd;
+	font-size: 14px;
+	padding: 10px;
+	color: white;
+	text-align: center;
+	border: none;
+	margin-right: 10px;
 	border-radius: 5px;
 }
 
@@ -75,44 +84,89 @@ body {
 	color: white;
 }
 
+.app-container .app-status .warning {
+	background-color: #ffc107;
+	color: black;
+}
+
 .app-container .form-control {
 	display: flex;
-	gap: 5px;
 	margin-bottom: 5px;
-	width: 50%;
-	/* margin-right: auto;
-	margin-left: auto; */
+	width: 100%;
+	gap: 10px;
 }
 
-.app-container .form-control .form-field {
-	flex: 1 1 0;
+.app-container .form-control .form-group {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
 }
 
-.app-container .form-control label {
+.app-container .form-control .form-group .form-field {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	/* justify-content: space-between; */
+}
+
+.app-container .form-control .form-group .form-field label {
 	font-size: 18px;
-	/* margin-right: 10px; */
+	display: block;
+	flex-grow: 1;
 }
 
-.app-container .form-control input {
-	padding: 5px 5px;
+.app-container .form-control .form-group .form-field input {
+	padding: 10px 5px;
 	border-radius: 5px;
 	border: none;
+	width: 100%;
+	max-width: 800px;
+	margin-left: 10px;
 }
 
-.app-container .form-control select {
-	border: 0;
-	border-radius: 5px;
-	font-size: 14px;
-	width: 100%;
-	padding: 5px 15px 5px 15px;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
+.app-container .sheet .form-control .form-group .form-field label {
+	flex-grow: 0;
+}
+.app-container .sheet .form-control .form-group .form-field input {
+	width: 55%;
+}
+
+.app-container .form-control .error {
+	display: block;
+	margin-top: 3px;
+	color: #dc3545;
+	height: 20px;
+	visibility: hidden;
+	text-align: center;
+}
+
+.app-container .form-control .error.show {
+	visibility: visible;
+}
+
+.app-container .sheets-list {
+	margin-top: 30px;
+}
+
+.app-container .sheets-list p {
+	text-align: center;
+	font-weight: 500;
+	margin-bottom: 10px;
+}
+
+.app-container .sheets-list .form-control .delete {
+	background-color: #dc3545;
 	outline: none;
-	/* Positions background arrow image */
-	background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAh0lEQVQ4T93TMQrCUAzG8V9x8QziiYSuXdzFC7h4AcELOPQAdXYovZCHEATlgQV5GFTe1ozJlz/kS1IpjKqw3wQBVyy++JI0y1GTe7DCBbMAckeNIQKk/BanALBB+16LtnDELoMcsM/BESDlz2heDR3WePwKSLo5eoxz3z6NNcFD+vu3ij14Aqz/DxGbKB7CAAAAAElFTkSuQmCC');
-	background-repeat: no-repeat;
-	background-position: right 10px center;
+	border-radius: 50%;
+	color: white;
+	display: block;
+	height: 30px;
+	width: 30px;
+	cursor: pointer;
+	font-size: 10px;
+	padding: 10px;
+	text-align: center;
+	border: none;
 }
 
 .app-container .form-control .button {
@@ -129,27 +183,4 @@ body {
 	color: white;
 	text-align: center;
 	border: none;
-}
-
-.app-container .group-list-container {
-	display: flex;
-	gap: 10px;
-}
-
-.app-container .group-list-container .group-list {
-	text-align: center;
-	padding: 5px 10px;
-	border: 1px solid black;
-	min-width: 300px;
-	height: 250px;
-}
-
-.app-container .group-list-container .group-list .list-item {
-	border: 1px solid black;
-	text-align: center;
-	padding: 5px 10px;
-}
-
-.app-container .group-list-container .group-list .list-item.dragging {
-	opacity: 0.5;
 }

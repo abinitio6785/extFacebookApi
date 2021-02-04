@@ -6,6 +6,7 @@ const axios = require('axios');
 const dotenv = require('dotenv').config();
 const logger = require('./logger');
 const fs = require('fs');
+const { clearInterval } = require('timers');
 
 const app = express();
 app.use(cors());
@@ -13,6 +14,8 @@ app.use(bodyParser.json());
 
 let access_token;
 let appInterval;
+let snooze;
+
 const auth = new google.auth.GoogleAuth({
 	keyFile: './cred.json',
 	scopes: [
@@ -27,44 +30,86 @@ const sheets = google.sheets({ version: 'v4', auth });
 
 function fetchPosts() {
 	return new Promise(async (resolve, reject) => {
-		try {
-			fs.readFile('./settings.json', 'utf8', async (err, data) => {
-				if (err) {
-					logger.error('Settings file not found. Closing app');
-					clearInterval(appInterval);
-					return;
-				}
+		fs.readFile('./settings.json', 'utf8', (err, data) => {
+			if (err) {
+				logger.error('Settings file not found. Closing app');
+				clearInterval(appInterval);
+				return;
+			}
 
-				const settings = JSON.parse(data);
-				const response = await axios.get(
-					`https://graph.facebook.com/v9.0/me/groups?fields=feed.limit(${settings.settings.postCount})%7Bstatus_type%2Cdescription%2Cfrom%2Cid%2Cmessage%2Cname%2Cstory%2Ctype%2Cpermalink_url%2Ccreated_time%2Cattachments%7Bmedia%2Cmedia_type%2Csubattachments%7D%2Ctarget%2Clink%2Csource%2Cupdated_time%2Cobject_id%2Cprivacy%7D%2Cname&limit=100&access_token=${access_token}`
-				);
-
-				resolve(response.data);
-			});
-		} catch (error) {
-			reject(error);
-		}
+			const settings = JSON.parse(data);
+			const postCount = settings.settings.postCount || '50';
+			axios
+				.get(
+					`https://graph.facebook.com/v9.0/me/groups?fields=feed.limit(${postCount})%7Bstatus_type%2Cdescription%2Cfrom%2Cid%2Cmessage%2Cname%2Cstory%2Ctype%2Cpermalink_url%2Ccreated_time%2Cattachments%7Bmedia%2Cmedia_type%2Csubattachments%7D%2Ctarget%2Clink%2Csource%2Cupdated_time%2Cobject_id%2Cprivacy%7D%2Cname&limit=1000&access_token=${access_token}`
+				)
+				.then(response => resolve(response.data))
+				.catch(error => reject(error));
+		});
 	});
 }
 
 async function handlePostsUpload(data) {
-	try {
-		const mappedPosts = mapPostsToSheetRows(data);
-		const sheetPostsID = await fecthPostsID();
-		const filteredPosts = filterDuplicatePosts(mappedPosts, sheetPostsID);
+	const mappedGroupPosts = mapPostsToSheetRows(data);
 
-		if (filteredPosts.length) {
-			const result = await uploadPosts(filteredPosts);
-			const sheetUpdates = result.data.updates;
-			const message = `${sheetUpdates.updatedRows} rows, ${sheetUpdates.updatedColumns} columns and ${sheetUpdates.updatedCells} cells updated`;
-			logMessage(message);
-		} else {
-			logMessage('no new posts to upload');
+	fs.readFile('./settings.json', 'utf8', (err, data) => {
+		if (err) {
+			logger.error('Setting file not found. Posts not uploaded. Stopping App');
+			clearInterval(appInterval);
+			return;
 		}
-	} catch (error) {
-		console.log(error);
-	}
+		const settings = JSON.parse(data);
+		if (!settings.sheets || !settings.sheets.length) {
+			logger.error('Sheets not found. Posts not uploaded. Stopping App');
+			clearInterval(appInterval);
+		} else {
+			const sheets = settings.sheets;
+			sheets.forEach(sheet => {
+				const postsToUpload = [];
+				fecthPostsID(sheet.googleSheetID)
+					.then(response => {
+						const sheetPostsID = response;
+						const groupPostsToUpload = mappedGroupPosts.slice(
+							parseInt(sheet.from) - 1,
+							parseInt(sheet.to)
+						);
+						groupPostsToUpload.forEach(groupPosts => {
+							groupPosts.forEach(post => postsToUpload.push(post));
+						});
+
+						const filteredPosts = filterDuplicatePosts(
+							postsToUpload,
+							sheetPostsID
+						);
+
+						if (filteredPosts.length) {
+							uploadPosts(filteredPosts, sheet.googleSheetID)
+								.then(response => {
+									result = response;
+									const sheetUpdates = result.data.updates;
+									const message = `${sheetUpdates.updatedRows} rows, ${sheetUpdates.updatedColumns} columns and ${sheetUpdates.updatedCells} cells updated`;
+									logMessage(message);
+								})
+								.catch(error => {
+									console.log(error);
+									const message = error?.response?.data?.error?.message;
+									logger.error(
+										message + ". Couldn't upload posts to google sheet"
+									);
+								});
+						} else {
+							logMessage('no new posts to upload');
+						}
+					})
+					.catch(error => {
+						const message = error?.response?.data?.error?.message;
+						logger.error(
+							message + ". Couldn't fetch post ids from google sheet"
+						);
+					});
+			});
+		}
+	});
 }
 
 function mapPostsToSheetRows(data) {
@@ -72,6 +117,7 @@ function mapPostsToSheetRows(data) {
 
 	data.forEach(groupData => {
 		const postsData = groupData.feed.data;
+		const mappedPosts = [];
 		if (postsData.length) {
 			postsData.forEach(postData => {
 				const sheetRows = {
@@ -95,7 +141,7 @@ function mapPostsToSheetRows(data) {
 				sheetRows.groupName = groupData.name;
 				sheetRows.type = postData.type;
 				sheetRows.createdAt = postData.created_time;
-				sheetRows.updatedAt = postData.update_time;
+				sheetRows.updatedAt = postData.updated_time;
 				sheetRows.permaLinkUrl = postData.permalink_url;
 
 				if (postData.object_id) sheetRows.objectID = postData.object_id;
@@ -137,19 +183,21 @@ function mapPostsToSheetRows(data) {
 						sheetRows.media = mediaData.source;
 					}
 				}
-				posts.push(sheetRows);
+				mappedPosts.push(sheetRows);
 			});
 		}
+
+		posts.push(mappedPosts);
 	});
 
 	return posts;
 }
 
-function fecthPostsID() {
+function fecthPostsID(spreadsheetId) {
 	return new Promise((resolve, reject) => {
 		sheets.spreadsheets.values.get(
 			{
-				spreadsheetId: '1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ',
+				spreadsheetId: spreadsheetId,
 				range: 'sheet1!A1:A',
 				majorDimension: 'COLUMNS'
 			},
@@ -172,7 +220,7 @@ function filterDuplicatePosts(mappedPosts, sheetPostsID) {
 	return filteredPosts;
 }
 
-function uploadPosts(posts) {
+function uploadPosts(posts, spreadsheetId) {
 	return new Promise((resolve, reject) => {
 		const values = posts.map(post => Object.values(post));
 		const resource = {
@@ -180,7 +228,7 @@ function uploadPosts(posts) {
 		};
 		sheets.spreadsheets.values.append(
 			{
-				spreadsheetId: '1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ',
+				spreadsheetId: spreadsheetId,
 				range: 'sheet1',
 				valueInputOption: 'RAW',
 				resource
@@ -209,9 +257,23 @@ async function appHandler() {
 			logMessage('No group or feed data available.');
 		}
 	} catch (error) {
-		clearInterval(appInterval);
-		const message = error.response.data.error.message;
-		logger.error(message + '. Stopping Posts Fetching');
+		if (
+			error?.response?.data?.error?.message ===
+			'(#4) Application request limit reached'
+		) {
+			clearInterval(appInterval);
+			clearTimeout(snooze);
+			snooze = setTimeout(() => {
+				appInitializer();
+			}, 30 * 60 * 1000);
+			const message = error?.response?.data?.error?.message;
+			console.log(message);
+			logger.error(message + '. Snoozing App for 30 minutes');
+		} else {
+			clearInterval(appInterval);
+			const message = error?.response?.data?.error?.message;
+			logger.error(message + '. Stopping Posts Fetching');
+		}
 	}
 }
 
@@ -227,63 +289,65 @@ function appInitializer() {
 		} else {
 			access_token = settings.auth_token;
 			const interval = parseInt(settings.settings.interval);
-			appInterval = setInterval(appHandler, interval * 1000);
+			appInterval = setInterval(appHandler, interval * 60 * 1000);
 		}
 	});
 }
-
-// sheets.spreadsheets.values.batchGet(
-// 	{
-// 		spreadsheetId: '1tktdZKgC3RgPJHJ0eEKRSxaGt9CskvbA0jEE5ynyLHQ',
-// 		ranges: ['sheet1!A2:A', 'sheet2!A2:A'],
-// 		majorDimension: 'COLUMNS'
-// 	},
-// 	(err, res) => {
-// 		if (err) {
-// 			console.log(err);
-// 		} else {
-// 			const rows = res.data;
-// 			rows.valueRanges.forEach(valueRange => {
-// 				console.log(valueRange);
-// 				console.log(valueRange.values);
-// 			});
-// 		}
-// 	}
-// );
-
-// sheets.spreadsheets.get(
-// 	{ spreadsheetId: process.env.googlesheet_id },
-// 	(err, res) => {
-// 		if (err) {
-// 			console.log(err);
-// 		} else {
-// 			console.log(res.data.sheets);
-// 		}
-// 	}
-// );
 
 // EAAF7BKV1MgQBAASyjM9LQjbLAJymAEktZCkHuChsenTfpjIG8CIQyA0cryszZBS7oYMfZBRelMA3KNNEUZBSADLxVXXZCGkZB1WPw5ZA1uGLYtxIbI2qHRCPOnAsFODcUHzhZAH3ncVSUEBiPrpbEniejT9E4IK8IaLdB1aKTJL2SoruQlNv5v0Facz8hboZBhw0ZD
 
 app.get('/appStatus', (req, res) => {
 	fs.readFile('./settings.json', 'utf8', async (err, data) => {
 		if (err) {
-			res.send({ status: 'not active' });
+			res.send({
+				status: 'not active',
+				message: 'User token not found',
+				type: 'error'
+			});
 			return;
 		}
 		const settings = JSON.parse(data);
 		if (!settings.auth_token) {
-			res.send({ status: 'not active' });
+			res.send({
+				status: 'not active',
+				message: 'User token not found. Please update token.',
+				type: 'error'
+			});
 		} else {
-			try {
-				const access_token = settings.auth_token;
-				const response = await axios.get(
+			const access_token = settings.auth_token;
+			axios
+				.get(
 					`https://graph.facebook.com/v9.0/me?fields=id%2Cname&&access_token=${access_token}`
-				);
-
-				res.send({ status: 'active', name: response.data.name });
-			} catch (error) {
-				res.send({ status: 'not active' });
-			}
+				)
+				.then(response => {
+					res.send({
+						status: 'active',
+						message: 'App is running.',
+						type: 'ok',
+						name: response.data.name,
+						postCount: settings.settings.postCount,
+						interval: settings.settings.interval,
+						sheets: settings.sheets
+					});
+				})
+				.catch(error => {
+					if (
+						error?.response?.data?.error?.message ===
+						'(#4) Application request limit reached'
+					) {
+						res.send({
+							status: 'active',
+							message: 'Application limit reached. App snoozed for 30 minutes.',
+							type: 'warning'
+						});
+					} else {
+						res.send({
+							status: 'not active',
+							message: 'User Token Expired. Please update token',
+							type: 'error'
+						});
+					}
+				});
 		}
 	});
 });
@@ -292,50 +356,62 @@ app.post('/updateToken', (req, res) => {
 	if (!req.body.token) {
 		res.send({ message: 'not updated' });
 	} else {
-		fs.readFile('./settings.json', 'utf8', async (err, data) => {
+		fs.readFile('./settings.json', 'utf8', (err, data) => {
 			if (err) {
 				res.send({ message: 'not updated' });
 				return;
 			}
 
-			try {
-				const settings = JSON.parse(data);
-				const access_token = req.body.token;
-				const response = await axios.get(
-					`https://graph.facebook.com/v9.0/me?fields=id%2Cname&&access_token=${access_token}`
-				);
+			const settings = JSON.parse(data);
+			const token = req.body.token;
+			axios
+				.get(
+					`https://graph.facebook.com/v9.0/me?fields=id%2Cname&&access_token=${token}`
+				)
+				.then(response => {
+					access_token = token;
 
-				const newSettings = {
-					auth_token: req.body.token,
-					settings: {
-						postCount: settings.settings.postCount,
-						interval: settings.settings.interval
-					}
-				};
+					const newSettings = {
+						auth_token: token,
+						settings: {
+							postCount: settings.settings.postCount,
+							interval: settings.settings.interval
+						},
+						sheets: settings.sheets
+					};
 
-				fs.writeFile(
-					'settings.json',
-					JSON.stringify(newSettings),
-					function (err) {
-						if (err) {
-							res.send({ message: 'not updated' });
-							return;
+					fs.writeFile(
+						'settings.json',
+						JSON.stringify(newSettings),
+						function (err) {
+							if (err) {
+								res.send({ message: 'not updated' });
+								return;
+							}
+							logMessage('Auth Token Updated');
+							clearTimeout(snooze);
+							clearInterval(appInterval);
+							appInitializer();
+							res.send({ message: 'updated', name: response.data.name });
 						}
-						logMessage('Auth Token Updated');
-						clearInterval(appInterval);
-						appInitializer();
-						res.send({ message: 'updated', name: response.data.name });
-					}
-				);
-			} catch (error) {
-				res.send({ status: 'not updated' });
-			}
+					);
+				})
+				.catch(error => {
+					console.log(error);
+					logger.error(
+						'Token not updated ' +
+							error?.response?.data?.error?.message +
+							'. Stopping App '
+					);
+					clearInterval(appInterval);
+					res.send({ status: 'not updated' });
+				});
 		});
 	}
 });
 
 app.post('/updateSettings', (req, res) => {
-	if (!req.body.interval || !req.body.postsCount) {
+	if (!req.body.interval || !req.body.postCount || !req.body.sheets) {
 		res.send({ message: 'not updated' });
 	} else {
 		fs.readFile('./settings.json', 'utf8', async (err, data) => {
@@ -348,9 +424,10 @@ app.post('/updateSettings', (req, res) => {
 			const newSettings = {
 				auth_token: settings.auth_token,
 				settings: {
-					postCount: req.body.postsCount,
+					postCount: req.body.postCount,
 					interval: req.body.interval
-				}
+				},
+				sheets: req.body.sheets
 			};
 
 			fs.writeFile(
@@ -363,6 +440,7 @@ app.post('/updateSettings', (req, res) => {
 					}
 					logMessage('App settings updated');
 					clearInterval(appInterval);
+					clearTimeout(snooze);
 					appInitializer();
 					res.send({ message: 'updated' });
 				}
@@ -384,7 +462,8 @@ app.post('/logout', (req, res) => {
 			settings: {
 				postCount: settings.settings.postCount,
 				interval: settings.settings.interval
-			}
+			},
+			sheets: settings.sheets
 		};
 
 		fs.writeFile(
@@ -397,7 +476,7 @@ app.post('/logout', (req, res) => {
 				}
 				logMessage('User Logged Out');
 				clearInterval(appInterval);
-				// appInitializer();
+				clearTimeout(snooze);
 				res.send({ message: 'logged out' });
 			}
 		);
@@ -406,5 +485,9 @@ app.post('/logout', (req, res) => {
 
 app.listen(5078, () => {
 	console.log('App listening on port 5078!');
-	appInitializer();
+	try {
+		appInitializer();
+	} catch (error) {
+		console.log(error);
+	}
 });
