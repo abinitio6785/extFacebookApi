@@ -7,8 +7,8 @@ const updateMessage = document.querySelector('.update-message');
 const user = document.querySelector('#user');
 const sheetsList = document.querySelector('#sheets-list');
 const addSheet = document.querySelector('#add-sheet');
-// const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
-const apiUrl = 'https://0ae7d1ac2d25.ngrok.io/';
+const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
+// const apiUrl = 'https://0ae7d1ac2d25.ngrok.io/';
 
 window.fbAsyncInit = function () {
 	FB.init({
