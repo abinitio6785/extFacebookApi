@@ -6,6 +6,7 @@ const appStatus = document.querySelector('#app-status');
 const updateMessage = document.querySelector('.update-message');
 const user = document.querySelector('#user');
 const sheetsList = document.querySelector('#sheets-list');
+const sheetsListHeader = document.querySelector('#sheets-list-header');
 const addSheet = document.querySelector('#add-sheet');
 const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
 // const apiUrl = 'https://0ae7d1ac2d25.ngrok.io/';
@@ -30,6 +31,7 @@ async function getAppStatus() {
 			paragraph.innerText = response.data.message;
 			paragraph.classList.add(response.data.type);
 			appStatus.appendChild(paragraph);
+
 			addUserField(response.data.name);
 			addSheetList(response.data.sheets);
 
@@ -71,7 +73,19 @@ async function updateToken(token) {
 			appStatus.appendChild(paragraph);
 			updateSetting.classList.add('show');
 			authorizeFacebook.classList.remove('show');
+
+			sheetsListHeader.classList.add('show');
+			sheetsList.appendChild(sheetsListHeader);
 			addUserField(response.data.name);
+			addSheetList(response.data.sheets);
+			postsCount.value = response.data.postCount;
+			interval.value = response.data.interval;
+		} else {
+			appStatus.removeChild(appStatus.querySelector('p'));
+			const paragraph = document.createElement('p');
+			paragraph.innerText =
+				'Something went wrong. User Token could not be updated.';
+			paragraph.classList.add('error');
 		}
 	} catch (error) {
 		console.log(error);
@@ -80,13 +94,7 @@ async function updateToken(token) {
 
 function addUserField(userName) {
 	const paragraph = document.createElement('p');
-	paragraph.innerText = `Welcome ${userName}`;
-
-	const div = document.createElement('div');
-
-	const addSheet = document.createElement('button');
-	addSheet.innerText = 'Add New Sheet';
-	addSheet.classList.add('add-sheet');
+	paragraph.innerText = `Welcome ${userName || ''}`;
 
 	const logout = document.createElement('button');
 	logout.innerText = 'Logout';
@@ -96,23 +104,20 @@ function addUserField(userName) {
 		logoutUser();
 	});
 
-	addSheet.addEventListener('click', () => {
-		addSheetHandler();
-	});
-
-	div.appendChild(addSheet);
-	div.appendChild(logout);
 	user.appendChild(paragraph);
-	user.appendChild(div);
+	user.appendChild(logout);
 }
 
 async function logoutUser() {
 	try {
 		const response = await axios.post(`${apiUrl}logout`, {});
 		user.innerHTML = '';
+		sheetsList.innerHTML = '';
+		postsCount.value = '';
+		interval.value = '';
 		appStatus.removeChild(appStatus.querySelector('p'));
 		const paragraph = document.createElement('p');
-		paragraph.innerText = 'User Token expired. Please update token.';
+		paragraph.innerText = 'User token not found. Please update token.';
 		paragraph.classList.add('error');
 		appStatus.appendChild(paragraph);
 		updateSetting.classList.remove('show');
@@ -174,35 +179,35 @@ updateSetting.addEventListener('click', async () => {
 			const googleSheetID = sheet.querySelector('.google-sheet-id');
 
 			if (from.value === '') {
-				setErrors(from, 'From value is required');
+				setErrors(from, 'Facebook group from value is required');
 				error = true;
 			} else {
 				if (checkForNumber(from.value)) {
 					if (from.value === '0') {
-						setErrors(from, 'From value cannot be 0');
+						setErrors(from, 'Facebook group from value cannot be 0');
 						error = true;
 					} else {
 						unsetErrors(from);
 					}
 				} else {
-					setErrors(from, 'From value must be a number');
+					setErrors(from, 'Facebook group from value must be a number');
 					error = true;
 				}
 			}
 
 			if (to.value === '') {
-				setErrors(to, 'To value is required');
+				setErrors(to, 'Facebook group to value is required');
 				error = true;
 			} else {
 				if (checkForNumber(to.value)) {
 					if (to.value === '0') {
-						setErrors(to, 'To value cannot be 0');
+						setErrors(to, 'Facebook group to value cannot be 0');
 						error = true;
 					} else {
 						unsetErrors(to);
 					}
 				} else {
-					setErrors(to, 'To value must be a number');
+					setErrors(to, 'Facebook group to value must be a number');
 					error = true;
 				}
 			}
@@ -227,9 +232,9 @@ updateSetting.addEventListener('click', async () => {
 			console.log(response);
 			if (response.data.message === 'updated') {
 				updateMessage.classList.add('show');
-				setInterval(() => {
+				setTimeout(() => {
 					updateMessage.classList.remove('show');
-				}, 3000);
+				}, 5000);
 			}
 		}
 	} catch (error) {
@@ -248,15 +253,23 @@ function addSheetList(sheets) {
 		const formGroup = document.createElement('div');
 		formGroup.classList.add('form-group');
 
-		const fromFormGroup = createFormGroup('From', 'From', 'from');
+		const fromFormGroup = createFormGroup(
+			'Facebook Group From',
+			'Facebook Group From',
+			'from'
+		);
 		fromFormGroup.querySelector('.from').value = sheetData.from;
 
-		const toFormGroup = createFormGroup('To', 'To', 'to');
+		const toFormGroup = createFormGroup(
+			'Facebook Group To',
+			'Facebook Group To',
+			'to'
+		);
 		toFormGroup.querySelector('.to').value = sheetData.to;
 
 		const googleSheetIDFormGroup = createFormGroup(
-			'Google Sheet ID',
-			'Google Sheet ID',
+			'Google Sheet',
+			'Google Sheet',
 			'google-sheet-id'
 		);
 
@@ -290,11 +303,21 @@ function addSheetHandler() {
 	const formGroup = document.createElement('div');
 	formGroup.classList.add('form-group');
 
-	const fromFormGroup = createFormGroup('From', 'From', 'from');
-	const toFormGroup = createFormGroup('To', 'To', 'to');
+	const fromFormGroup = createFormGroup(
+		'Facebook Group From',
+		'Facebook Group From',
+		'from'
+	);
+
+	const toFormGroup = createFormGroup(
+		'Facebook Group To',
+		'Facebook Group To',
+		'to'
+	);
+
 	const googleSheetIDFormGroup = createFormGroup(
-		'Google Sheet ID',
-		'Google Sheet ID',
+		'Google Sheet',
+		'Google Sheet',
 		'google-sheet-id'
 	);
 
@@ -371,6 +394,6 @@ function unsetErrors(htmlNode) {
 	error.classList.remove('show');
 }
 
-// addSheet.addEventListener('click', () => {
-// 	addSheetHandler();
-// });
+addSheet.addEventListener('click', () => {
+	addSheetHandler();
+});

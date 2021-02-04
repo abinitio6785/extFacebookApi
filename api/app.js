@@ -392,7 +392,13 @@ app.post('/updateToken', (req, res) => {
 							clearTimeout(snooze);
 							clearInterval(appInterval);
 							appInitializer();
-							res.send({ message: 'updated', name: response.data.name });
+							res.send({
+								message: 'updated',
+								name: response.data.name,
+								postCount: newSettings.settings.postCount,
+								interval: newSettings.settings.interval,
+								sheets: newSettings.sheets
+							});
 						}
 					);
 				})

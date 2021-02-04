@@ -11,7 +11,7 @@ body {
 }
 
 .app-container {
-	margin: auto auto;
+	margin: 20px auto;
 	width: 80%;
 }
 
@@ -100,12 +100,14 @@ body {
 	width: 100%;
 	display: flex;
 	flex-direction: column;
+	justify-content: center;
 }
 
 .app-container .form-control .form-group .form-field {
 	width: 100%;
 	display: flex;
 	align-items: center;
+
 	/* justify-content: space-between; */
 }
 
@@ -128,12 +130,12 @@ body {
 	flex-grow: 0;
 }
 .app-container .sheet .form-control .form-group .form-field input {
-	width: 55%;
+	width: 100%;
 }
 
 .app-container .form-control .error {
 	display: block;
-	margin-top: 3px;
+	margin-top: 5px;
 	color: #dc3545;
 	height: 20px;
 	visibility: hidden;
@@ -148,10 +150,40 @@ body {
 	margin-top: 30px;
 }
 
-.app-container .sheets-list p {
-	text-align: center;
+.app-container .sheets-list .sheets-list-header {
+	display: none;
+}
+
+.app-container .sheets-list .sheets-list-header.show {
+	display: flex;
+	margin-bottom: 20px;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.app-container .sheets-list .sheets-list-header p {
 	font-weight: 500;
-	margin-bottom: 10px;
+}
+
+.app-container .sheets-list .sheets-list-header .add-sheet {
+	cursor: pointer;
+	padding: 10px 20px;
+	background-color: #0d6efd;
+	font-size: 14px;
+	padding: 10px;
+	color: white;
+	text-align: center;
+	border: none;
+	margin-right: 10px;
+	border-radius: 5px;
+}
+
+.app-container .sheets-list .sheet {
+	margin-bottom: 20px;
+}
+
+.app-container .sheets-list .form-control .error {
+	text-align: start;
 }
 
 .app-container .sheets-list .form-control .delete {
@@ -160,13 +192,16 @@ body {
 	border-radius: 50%;
 	color: white;
 	display: block;
-	height: 30px;
-	width: 30px;
 	cursor: pointer;
 	font-size: 10px;
 	padding: 10px;
 	text-align: center;
 	border: none;
+	height: 30px;
+	width: 30px;
+	align-self: center;
+	justify-self: center;
+	transform: translateY(-50%);
 }
 
 .app-container .form-control .button {
@@ -176,7 +211,6 @@ body {
 	display: block;
 	cursor: pointer;
 	width: 100%;
-	margin-top: 20px;
 	font-size: 14px;
 	padding: 10px;
 	background-color: rgb(24, 119, 242);
