@@ -240,7 +240,42 @@ function fecthPostsID(spreadsheetId) {
 						const rows = res.data.values[0];
 						resolve(rows);
 					} else {
-						resolve([]);
+						const resource = {
+							values: [
+								[
+									'Post ID',
+									'Group Name',
+									'Object ID',
+									'Type',
+									'From',
+									'Message',
+									'Story',
+									'Permalink URL',
+									'Link',
+									'Media',
+									'Target',
+									'Source',
+									'Privacy',
+									'Created At',
+									'Updated At'
+								]
+							]
+						};
+						sheets.spreadsheets.values.append(
+							{
+								spreadsheetId: spreadsheetId,
+								range: 'sheet1',
+								valueInputOption: 'RAW',
+								resource
+							},
+							(err, result) => {
+								if (err) {
+									reject(err);
+								} else {
+									resolve([]);
+								}
+							}
+						);
 					}
 				}
 			}
