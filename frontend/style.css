@@ -3,16 +3,21 @@
 	padding: 0;
 	box-sizing: border-box;
 }
+html,
+body {
+	/* height: 100%; */
+	width: 100%;
+}
 
 body {
-	width: 100%;
 	background: #cee3e2;
 	font-family: 'Roboto', sans-serif;
 }
 
 .app-container {
-	margin: 20px auto;
+	margin: 10px auto;
 	width: 80%;
+	height: 100%;
 }
 
 .app-container .app-status p {
@@ -45,7 +50,6 @@ body {
 .user {
 	display: flex;
 	justify-content: space-between;
-	/* width: 50%; */
 	margin-bottom: 10px;
 	align-items: center;
 }
@@ -58,19 +62,6 @@ body {
 	color: white;
 	text-align: center;
 	border: none;
-	border-radius: 5px;
-}
-
-.user .add-sheet {
-	cursor: pointer;
-	padding: 10px 20px;
-	background-color: #0d6efd;
-	font-size: 14px;
-	padding: 10px;
-	color: white;
-	text-align: center;
-	border: none;
-	margin-right: 10px;
 	border-radius: 5px;
 }
 
@@ -93,7 +84,6 @@ body {
 	display: flex;
 	margin-bottom: 5px;
 	width: 100%;
-	gap: 10px;
 }
 
 .app-container .form-control .form-group {
@@ -107,8 +97,6 @@ body {
 	width: 100%;
 	display: flex;
 	align-items: center;
-
-	/* justify-content: space-between; */
 }
 
 .app-container .form-control .form-group .form-field label {
@@ -146,62 +134,23 @@ body {
 	visibility: visible;
 }
 
-.app-container .sheets-list {
-	margin-top: 30px;
-}
-
 .app-container .sheets-list .sheets-list-header {
 	display: none;
 }
 
 .app-container .sheets-list .sheets-list-header.show {
-	display: flex;
+	display: block;
 	margin-bottom: 20px;
-	justify-content: space-between;
-	align-items: center;
+	text-align: center;
 }
 
-.app-container .sheets-list .sheets-list-header p {
+.app-container .sheets-list p {
 	font-weight: 500;
 }
 
-.app-container .sheets-list .sheets-list-header .add-sheet {
-	cursor: pointer;
-	padding: 10px 20px;
-	background-color: #0d6efd;
-	font-size: 14px;
-	padding: 10px;
-	color: white;
-	text-align: center;
-	border: none;
-	margin-right: 10px;
-	border-radius: 5px;
-}
-
-.app-container .sheets-list .sheet {
+.app-container .sheets-list .no-groups-header {
 	margin-bottom: 20px;
-}
-
-.app-container .sheets-list .form-control .error {
-	text-align: start;
-}
-
-.app-container .sheets-list .form-control .delete {
-	background-color: #dc3545;
-	outline: none;
-	border-radius: 50%;
-	color: white;
-	display: block;
-	cursor: pointer;
-	font-size: 10px;
-	padding: 10px;
 	text-align: center;
-	border: none;
-	height: 30px;
-	width: 30px;
-	align-self: center;
-	justify-self: center;
-	transform: translateY(-50%);
 }
 
 .app-container .form-control .button {
@@ -217,4 +166,48 @@ body {
 	color: white;
 	text-align: center;
 	border: none;
+}
+
+.facebook-groups {
+	display: block;
+	width: 100%;
+	border-collapse: collapse;
+	max-height: 250px;
+	overflow: auto;
+	margin-bottom: 20px;
+}
+
+.facebook-groups th {
+	text-align: start;
+	padding: 5px 20px;
+	padding-bottom: 10px;
+}
+
+.facebook-groups th:nth-child(2) {
+	display: none;
+}
+
+.facebook-groups td {
+	text-align: start;
+	padding: 5px 20px;
+}
+
+.facebook-groups td:nth-child(2) {
+	display: none;
+}
+
+.facebook-groups td:nth-child(3) {
+	max-width: 300px;
+	overflow-wrap: break-word;
+}
+
+.facebook-groups td:nth-child(4) {
+	min-width: 600px;
+}
+
+.facebook-groups td input {
+	padding: 10px 10px;
+	border-radius: 5px;
+	border: none;
+	width: 100%;
 }

@@ -9,7 +9,7 @@ const sheetsList = document.querySelector('#sheets-list');
 const sheetsListHeader = document.querySelector('#sheets-list-header');
 const addSheet = document.querySelector('#add-sheet');
 const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
-// const apiUrl = 'https://0ae7d1ac2d25.ngrok.io/';
+// const apiUrl = 'https://1ebe7af2feaf.ngrok.io/';
 
 window.fbAsyncInit = function () {
 	FB.init({
@@ -32,12 +32,13 @@ async function getAppStatus() {
 			paragraph.classList.add(response.data.type);
 			appStatus.appendChild(paragraph);
 
-			sheetsListHeader.classList.add('show');
-			addUserField(response.data.name);
-			addSheetList(response.data.sheets);
-
 			postsCount.value = response.data.postCount;
 			interval.value = response.data.interval;
+			addUserField(response.data.name);
+			addFacebookGroups(
+				response.data.userFacebookGroups,
+				response.data.groupsToSheets
+			);
 		} else {
 			authorizeFacebook.classList.add('show');
 			const paragraph = document.createElement('p');
@@ -69,18 +70,19 @@ async function updateToken(token) {
 		if (response.data.message === 'updated') {
 			appStatus.removeChild(appStatus.querySelector('p'));
 			const paragraph = document.createElement('p');
-			paragraph.innerText = 'App is running.';
-			paragraph.classList.add('ok');
+			paragraph.innerText = response.data.status;
+			paragraph.classList.add(response.data.type);
 			appStatus.appendChild(paragraph);
 			updateSetting.classList.add('show');
 			authorizeFacebook.classList.remove('show');
-
-			sheetsListHeader.classList.add('show');
-			sheetsList.appendChild(sheetsListHeader);
-			addUserField(response.data.name);
-			addSheetList(response.data.sheets);
 			postsCount.value = response.data.postCount;
 			interval.value = response.data.interval;
+
+			addUserField(response.data.name);
+			addFacebookGroups(
+				response.data.userFacebookGroups,
+				response.data.groupsToSheets
+			);
 		} else {
 			appStatus.removeChild(appStatus.querySelector('p'));
 			const paragraph = document.createElement('p');
@@ -113,7 +115,13 @@ async function logoutUser() {
 	try {
 		const response = await axios.post(`${apiUrl}logout`, {});
 		user.innerHTML = '';
-		sheetsList.innerHTML = '';
+		sheetsList.querySelector('#sheets-list-header').classList.remove('show');
+		const groupsTable = sheetsList.querySelector('.facebook-groups');
+		if (groupsTable) {
+			groupsTable.remove();
+		} else {
+			sheetsList.querySelector('no-groups-header').remove();
+		}
 		postsCount.value = '';
 		interval.value = '';
 		appStatus.removeChild(appStatus.querySelector('p'));
@@ -130,12 +138,11 @@ async function logoutUser() {
 
 updateSetting.addEventListener('click', async () => {
 	try {
-		const sheets = sheetsList.querySelectorAll('.sheet');
 		let error = false;
 		const postBody = {
 			postCount: '',
 			interval: '',
-			sheets: []
+			groupsToSheets: []
 		};
 
 		if (postsCount.value === '') {
@@ -174,63 +181,18 @@ updateSetting.addEventListener('click', async () => {
 			}
 		}
 
-		sheets.forEach(sheet => {
-			const from = sheet.querySelector('.from');
-			const to = sheet.querySelector('.to');
-			const googleSheetID = sheet.querySelector('.google-sheet-id');
-
-			if (from.value === '') {
-				setErrors(from, 'Facebook group from value is required');
-				error = true;
-			} else {
-				if (checkForNumber(from.value)) {
-					if (from.value === '0') {
-						setErrors(from, 'Facebook group from value cannot be 0');
-						error = true;
-					} else {
-						unsetErrors(from);
-					}
-				} else {
-					setErrors(from, 'Facebook group from value must be a number');
-					error = true;
-				}
-			}
-
-			if (to.value === '') {
-				setErrors(to, 'Facebook group to value is required');
-				error = true;
-			} else {
-				if (checkForNumber(to.value)) {
-					if (to.value === '0') {
-						setErrors(to, 'Facebook group to value cannot be 0');
-						error = true;
-					} else {
-						unsetErrors(to);
-					}
-				} else {
-					setErrors(to, 'Facebook group to value must be a number');
-					error = true;
-				}
-			}
-
-			if (googleSheetID.value === '') {
-				error = true;
-				setErrors(googleSheetID, 'Google Sheet ID is required');
-			} else {
-				unsetErrors(googleSheetID);
-			}
-
-			postBody.sheets.push({
-				from: from.value,
-				to: to.value,
-				googleSheetID: googleSheetID.value
-			});
+		const table = document.querySelector('.facebook-groups');
+		tableData = table.querySelectorAll('.table-data');
+		tableData.forEach(data => {
+			const id = data.querySelector('.group-id').innerText;
+			const name = data.querySelector('.group-name').innerText;
+			const googleSheetUrl = data.querySelector('.google-sheet-url').value;
+			postBody.groupsToSheets.push({ id, name, googleSheetUrl });
 		});
 
 		if (!error) {
-			// console.log(error, postBody);
 			const response = await axios.post(`${apiUrl}updateSettings`, postBody);
-			console.log(response);
+			console.log(response.data);
 			if (response.data.message === 'updated') {
 				updateMessage.classList.add('show');
 				setTimeout(() => {
@@ -242,135 +204,6 @@ updateSetting.addEventListener('click', async () => {
 		console.log(error);
 	}
 });
-
-function addSheetList(sheets) {
-	sheets.forEach(sheetData => {
-		const sheet = document.createElement('div');
-		sheet.classList.add('sheet');
-
-		const formControl = document.createElement('div');
-		formControl.classList.add('form-control');
-
-		const formGroup = document.createElement('div');
-		formGroup.classList.add('form-group');
-
-		const fromFormGroup = createFormGroup(
-			'Facebook Group From',
-			'Facebook Group From',
-			'from'
-		);
-		fromFormGroup.querySelector('.from').value = sheetData.from;
-
-		const toFormGroup = createFormGroup(
-			'Facebook Group To',
-			'Facebook Group To',
-			'to'
-		);
-		toFormGroup.querySelector('.to').value = sheetData.to;
-
-		const googleSheetIDFormGroup = createFormGroup(
-			'Google Sheet',
-			'Google Sheet',
-			'google-sheet-id'
-		);
-
-		googleSheetIDFormGroup.querySelector('.google-sheet-id').value =
-			sheetData.googleSheetID;
-
-		const trash = document.createElement('button');
-		trash.classList.add('delete');
-		trash.innerText = 'X';
-
-		trash.addEventListener('click', e => {
-			deleteSheetDetails(e.target);
-		});
-
-		formControl.appendChild(fromFormGroup);
-		formControl.appendChild(toFormGroup);
-		formControl.appendChild(googleSheetIDFormGroup);
-		formControl.appendChild(trash);
-		sheet.appendChild(formControl);
-		sheetsList.appendChild(sheet);
-	});
-}
-
-function addSheetHandler() {
-	const sheet = document.createElement('div');
-	sheet.classList.add('sheet');
-
-	const formControl = document.createElement('div');
-	formControl.classList.add('form-control');
-
-	const formGroup = document.createElement('div');
-	formGroup.classList.add('form-group');
-
-	const fromFormGroup = createFormGroup(
-		'Facebook Group From',
-		'Facebook Group From',
-		'from'
-	);
-
-	const toFormGroup = createFormGroup(
-		'Facebook Group To',
-		'Facebook Group To',
-		'to'
-	);
-
-	const googleSheetIDFormGroup = createFormGroup(
-		'Google Sheet',
-		'Google Sheet',
-		'google-sheet-id'
-	);
-
-	const trash = document.createElement('button');
-	trash.classList.add('delete');
-	trash.innerText = 'X';
-
-	trash.addEventListener('click', e => {
-		deleteSheetDetails(e.target);
-	});
-
-	formControl.appendChild(fromFormGroup);
-	formControl.appendChild(toFormGroup);
-	formControl.appendChild(googleSheetIDFormGroup);
-	formControl.appendChild(trash);
-	sheet.appendChild(formControl);
-	sheetsList.appendChild(sheet);
-}
-
-function createFormGroup(labelText, inputFieldPlaceHolder, className) {
-	const formGroup = document.createElement('div');
-	formGroup.classList.add('form-group');
-
-	const formField = document.createElement('div');
-	formField.classList.add('form-field');
-
-	const error = document.createElement('div');
-	error.classList.add('error');
-
-	const span = document.createElement('span');
-	span.innerText = 'Error';
-	error.appendChild(span);
-
-	const label = document.createElement('label');
-	label.innerText = `${labelText}:`;
-	const inputField = document.createElement('input');
-	inputField.setAttribute('type', 'text');
-	inputField.setAttribute('placeholder', inputFieldPlaceHolder);
-	inputField.classList.add(className);
-	formField.appendChild(label);
-	formField.appendChild(inputField);
-
-	formGroup.appendChild(formField);
-	formGroup.appendChild(error);
-	return formGroup;
-}
-
-function deleteSheetDetails(htmlNode) {
-	const formControl = htmlNode.parentElement;
-	const sheet = formControl.parentElement;
-	sheet.remove();
-}
 
 function checkForNumber(number) {
 	const reg = /^\d+$/;
@@ -395,6 +228,45 @@ function unsetErrors(htmlNode) {
 	error.classList.remove('show');
 }
 
-addSheet.addEventListener('click', () => {
-	addSheetHandler();
-});
+function addFacebookGroups(facebookGroups, groupsToSheets) {
+	if (facebookGroups.length) {
+		sheetsListHeader.classList.add('show');
+		const table = document.createElement('table');
+		table.classList.add('facebook-groups');
+		const tableHeading = `
+							<tr>
+								<th>S. No</th>
+								<th>Group Id</th>
+								<th>Group Name</th>
+								<th>Google Sheet Url</th>
+							</tr>
+							`;
+		table.innerHTML += tableHeading;
+		let tableBody = '';
+		facebookGroups.forEach((group, index) => {
+			const data = groupsToSheets.filter(
+				sheetData => sheetData.id === group.id
+			);
+			const inputValue = data.length ? data[0].googleSheetUrl : '';
+			tableBody += `
+						<tr class='table-data'>
+							<td>${index + 1}</td>
+							<td class="group-id">${group.id}</td>
+							<td class="group-name">${group.name}</td>
+							<td>
+								<input type='text' placeholder="Google Sheet Url"  class="google-sheet-url" value=${inputValue}>
+							</td>
+						</tr>
+						`;
+		});
+		table.innerHTML += tableBody;
+
+		sheetsList.appendChild(table);
+	} else {
+		const p = document.createElement('p');
+		p.classList.add('no-groups-header');
+		p.innerText = 'No groups found';
+
+		sheetsList.appendChild(p);
+	}
+}
