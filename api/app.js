@@ -236,8 +236,12 @@ function fecthPostsID(spreadsheetId) {
 				if (err) {
 					reject(err);
 				} else {
-					const rows = res.data.values[0];
-					resolve(rows);
+					if (res.data && res.data.values) {
+						const rows = res.data.values[0];
+						resolve(rows);
+					} else {
+						resolve([]);
+					}
 				}
 			}
 		);
