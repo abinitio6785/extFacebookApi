@@ -140,7 +140,11 @@ function handlePostsUpload(data) {
 }
 
 function getSheetIdFromUrl(url) {
-	return url.split('/d/')[1].split('/')[0];
+	if (url.includes('/d/')) {
+		return url.split('/d/')[1].split('/')[0];
+	} else {
+		return '';
+	}
 }
 
 function mapPostsToSheetRows(data) {
