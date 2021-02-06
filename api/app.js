@@ -6,8 +6,6 @@ const axios = require('axios');
 const dotenv = require('dotenv').config();
 const logger = require('./logger');
 const fs = require('fs');
-const { clearInterval } = require('timers');
-const { settings } = require('cluster');
 
 const app = express();
 app.use(cors());
@@ -140,11 +138,11 @@ function handlePostsUpload(data) {
 }
 
 function getSheetIdFromUrl(url) {
+	let id = '';
 	if (url.includes('/d/')) {
-		return url.split('/d/')[1].split('/')[0];
-	} else {
-		return '';
+		id = url.split('/d/')[1].split('/')[0];
 	}
+	return id;
 }
 
 function mapPostsToSheetRows(data) {
@@ -338,7 +336,7 @@ app.get('/appStatus', (req, res) => {
 		if (err) {
 			res.send({
 				status: 'not active',
-				message: 'User token not found',
+				message: 'Facebook authentication token not found.',
 				type: 'error'
 			});
 			return;
@@ -348,7 +346,7 @@ app.get('/appStatus', (req, res) => {
 		if (!activeUser.length) {
 			res.send({
 				status: 'not active',
-				message: 'No active user found. Please update token.',
+				message: 'Facebook authentication token not found.',
 				type: 'error'
 			});
 		} else {
