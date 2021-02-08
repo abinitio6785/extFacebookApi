@@ -6,6 +6,7 @@ const axios = require('axios');
 const dotenv = require('dotenv').config();
 const logger = require('./logger');
 const fs = require('fs');
+const { resolve } = require('path');
 
 const app = express();
 app.use(cors());
@@ -36,16 +37,61 @@ function fetchPosts() {
 			}
 
 			const users = JSON.parse(data);
-			const activeUser = users.filter(user => user.active)[0];
-			const postCount = activeUser.settings.postCount || '50';
-			const accessToken = activeUser.accessToken;
-			axios
-				.get(
-					`https://graph.facebook.com/v9.0/me/groups?fields=feed.limit(${postCount})%7Bstatus_type%2Cdescription%2Cfrom%2Cid%2Cmessage%2Cname%2Cstory%2Ctype%2Cpermalink_url%2Ccreated_time%2Cattachments%7Bmedia%2Cmedia_type%2Csubattachments%7D%2Ctarget%2Clink%2Csource%2Cupdated_time%2Cobject_id%2Cprivacy%7D%2Cname&limit=1000&access_token=${accessToken}`
-				)
-				.then(response => resolve(response.data))
-				.catch(error => reject(error));
+			const activeUser = users.filter(user => user.active);
+			if (activeUser.length) {
+				if (activeUser[0].groupsToSheets.length) {
+					const postCount = activeUser[0].settings.postCount;
+					const accessToken = activeUser[0].accessToken;
+					const groupsToSheets = activeUser[0].groupsToSheets;
+					// const url = `https://graph.facebook.com/v9.0/me/groups?fields=feed.limit(${postCount})%7Bstatus_type%2Cdescription%2Cfrom%2Cid%2Cmessage%2Cname%2Cstory%2Ctype%2Cpermalink_url%2Ccreated_time%2Cattachments%7Bmedia%2Cmedia_type%2Csubattachments%7D%2Ctarget%2Clink%2Csource%2Cupdated_time%2Cobject_id%2Cprivacy%7D%2Cname&limit=${1000}&access_token=${accessToken}`;
+					// axios
+					// 	.get(url)
+					// 	.then(response => resolve(response.data))
+					// 	.catch(error => reject(error));
+					fetchGroupPosts(accessToken, postCount, groupsToSheets)
+						.then(res => resolve(res))
+						.catch(err => reject(err));
+				} else {
+					logger.error('Groups to sheets not available.. Posts not fetched');
+				}
+			} else {
+				logger.error('No active user found. Posts not fetched');
+			}
 		});
+	});
+}
+
+function fetchGroupPosts(accessToken, postCount, groupsToSheets) {
+	return new Promise(async (resolve, reject) => {
+		try {
+			groupsToSheets = groupsToSheets.filter(
+				groupSheet => groupSheet.googleSheetUrl !== ''
+			);
+			const promises = groupsToSheets.map(async groupSheet => {
+				const url = `https://graph.facebook.com/v9.0/${groupSheet.id}/feed?fields=from%2Cid%2Cmessage%2Cobject_id%2Cattachments%7Bsubattachments%2Cmedia%2Cmedia_type%7D%2Cdescription%2Cstatus_type%2Cname%2Cstory%2Cpermalink_url%2Ctype%2Ccreated_time%2Cupdated_time%2Ctarget%2Clink%2Csource%2Cprivacy&limit=${postCount}&access_token=${accessToken}`;
+
+				try {
+					let response = await axios.get(url);
+					if (response.data.data && response.data.data.length) {
+						const feedObj = {
+							feed: {
+								data: response.data.data
+							},
+							id: groupSheet.id,
+							name: groupSheet.name
+						};
+						return feedObj;
+					}
+				} catch (error) {
+					const message = error?.response?.data?.error?.message;
+					logger.error(message);
+				}
+			});
+			const postsData = await Promise.all(promises);
+			resolve(postsData);
+		} catch (error) {
+			reject(error);
+		}
 	});
 }
 
@@ -321,13 +367,12 @@ function logMessage(message) {
 async function appHandler() {
 	try {
 		const data = await fetchPosts();
-		if (data.data && data.data.length) {
-			handlePostsUpload(data.data);
+		if (data && data.length) {
+			handlePostsUpload(data);
 		} else {
 			logMessage('No group or feed data available.');
 		}
 	} catch (error) {
-		console.log(error);
 		if (
 			error?.response?.data?.error?.message ===
 			'(#4) Application request limit reached'
@@ -338,10 +383,10 @@ async function appHandler() {
 				appInitializer();
 			}, 30 * 60 * 1000);
 			const message = error?.response?.data?.error?.message;
-			console.log(message);
 			logger.error(message + '. Snoozing App for 30 minutes');
 		} else {
 			clearInterval(appInterval);
+			clearTimeout(snooze);
 			const message = error?.response?.data?.error?.message;
 			logger.error(message + '. Stopping Posts Fetching');
 		}
@@ -349,30 +394,37 @@ async function appHandler() {
 }
 
 function appInitializer() {
-	fs.readFile('./users.json', 'utf8', async (err, data) => {
+	fs.access('./users.json', err => {
 		if (err) {
-			logger.error('Users file not found. App not started');
-			return;
+			createUserFile().then(res => {});
 		}
-		const users = JSON.parse(data);
-		const activeUser = users.filter(user => user.active);
-		if (!activeUser.length) {
-			logger.error('No active user found. App not started');
-		} else if (!activeUser[0].accessToken) {
-			logger.error('Access Token not found. App not started');
-		} else if (!activeUser[0].groupsToSheets.length) {
-			logger.error('Groups to sheets not available. App not started');
-		} else {
-			const interval = parseInt(activeUser[0].settings.interval);
-			appInterval = setInterval(appHandler, interval * 60 * 1000);
-			appHandler();
-		}
+
+		fs.readFile('./users.json', 'utf8', async (err, data) => {
+			if (err) {
+				logger.error('Users file could not be read. App not started');
+				return;
+			}
+			const users = JSON.parse(data);
+			const activeUser = users.filter(user => user.active);
+			if (!activeUser.length) {
+				logger.error('No active user found. App not started');
+			} else if (!activeUser[0].accessToken) {
+				logger.error('Access Token not found. App not started');
+			} else if (!activeUser[0].groupsToSheets.length) {
+				logger.error('Groups to sheets not available. App not started');
+			} else {
+				const interval = parseInt(activeUser[0].settings.interval);
+				appInterval = setInterval(appHandler, interval * 60 * 1000);
+				appHandler();
+			}
+		});
 	});
 }
 
 app.get('/appStatus', (req, res) => {
 	fs.readFile('./users.json', 'utf8', (err, data) => {
 		if (err) {
+			createUserFile();
 			res.send({
 				status: 'not active',
 				message: 'Facebook authentication token not found.',
@@ -418,7 +470,11 @@ app.get('/appStatus', (req, res) => {
 									status: 'active',
 									message:
 										'Application limit reached. App snoozed for 30 minutes.',
-									type: 'warning'
+									type: 'warning',
+									name: response.data.name,
+									postCount: activeUser[0].settings.postCount,
+									interval: activeUser[0].settings.interval
+									// groupsToSheets: activeUser[0].groupsToSheets
 								});
 							} else {
 								res.send({
@@ -438,7 +494,10 @@ app.get('/appStatus', (req, res) => {
 						res.send({
 							status: 'active',
 							message: 'Application limit reached. App snoozed for 30 minutes.',
-							type: 'warning'
+							type: 'warning',
+							name: response.data.name,
+							postCount: activeUser[0].settings.postCount,
+							interval: activeUser[0].settings.interval
 						});
 					} else {
 						res.send({
@@ -476,6 +535,7 @@ app.post('/updateToken', (req, res) => {
 
 					let updatedUserData;
 					if (userData.length) {
+						otherUsersData.forEach(user => (user.active = false));
 						updatedUserData = {
 							active: true,
 							accessToken: token,
@@ -538,11 +598,8 @@ app.post('/updateToken', (req, res) => {
 				.catch(error => {
 					console.log(error);
 					logger.error(
-						'Token not updated ' +
-							error?.response?.data?.error?.message +
-							'. Stopping App '
+						'Token not updated. ' + error?.response?.data?.error?.message
 					);
-					clearInterval(appInterval);
 					res.send({ status: 'not updated' });
 				});
 		});
@@ -551,44 +608,53 @@ app.post('/updateToken', (req, res) => {
 
 app.post('/updateSettings', (req, res) => {
 	if (!req.body.interval || !req.body.postCount || !req.body.groupsToSheets) {
-		res.send({ message: 'not updated' });
+		res.send({
+			status: 'not updated',
+			message: 'Interval, Post count and Groups data are required.'
+		});
 	} else {
 		fs.readFile('./users.json', 'utf8', async (err, data) => {
 			if (err) {
-				console.log(err);
-				res.send({ message: 'not updated' });
+				res.send({ status: 'not updated' });
 				return;
 			}
 			const users = JSON.parse(data);
-			const userData = users.filter(user => user.active);
+			const activeUser = users.filter(user => user.active);
 			const otherUsersData = users.filter(user => !user.active);
 
-			const updatedUserData = {
-				active: true,
-				accessToken: userData[0].accessToken,
-				id: userData[0].id,
-				settings: {
-					postCount: req.body.postCount,
-					interval: req.body.interval
-				},
-				groupsToSheets: req.body.groupsToSheets
-			};
+			if (activeUser.length) {
+				const updatedUserData = {
+					active: true,
+					accessToken: activeUser[0].accessToken,
+					id: activeUser[0].id,
+					settings: {
+						postCount: req.body.postCount,
+						interval: req.body.interval
+					},
+					groupsToSheets: req.body.groupsToSheets
+				};
 
-			fs.writeFile(
-				'./users.json',
-				JSON.stringify([updatedUserData, ...otherUsersData]),
-				function (err) {
-					if (err) {
-						res.send({ message: 'not updated' });
-						return;
+				fs.writeFile(
+					'./users.json',
+					JSON.stringify([updatedUserData, ...otherUsersData]),
+					function (err) {
+						if (err) {
+							res.send({ status: 'not updated' });
+							return;
+						}
+						logMessage('App settings updated');
+						clearInterval(appInterval);
+						clearTimeout(snooze);
+						appInitializer();
+						res.send({ status: 'updated', message: 'App settings updated' });
 					}
-					logMessage('App settings updated');
-					clearInterval(appInterval);
-					clearTimeout(snooze);
-					appInitializer();
-					res.send({ message: 'updated' });
-				}
-			);
+				);
+			} else {
+				res.send({
+					status: 'not updated',
+					message: 'Active user not found. App settings not updated.'
+				});
+			}
 		});
 	}
 });
@@ -596,7 +662,6 @@ app.post('/updateSettings', (req, res) => {
 app.post('/logout', (req, res) => {
 	fs.readFile('./users.json', 'utf8', async (err, data) => {
 		if (err) {
-			console.log(err);
 			res.send({ message: 'not updated' });
 			return;
 		}
@@ -627,7 +692,7 @@ function getUserGroups(accessToken) {
 		try {
 			const appToken = '416734862717444|5uos3JiG_XFbeaB8IRpKLg_j7qQ';
 			let appInstalledGroups = [];
-			const appInstalledUrl = `https://graph.facebook.com/v9.0/416734862717444/app_installed_groups?access_token=${appToken}`;
+			const appInstalledUrl = `https://graph.facebook.com/v9.0/416734862717444/app_installed_groups?limit=2000&access_token=${appToken}`;
 			let response = await axios.get(appInstalledUrl);
 			appInstalledGroups = [...appInstalledGroups, ...response.data.data];
 			while (
@@ -635,12 +700,16 @@ function getUserGroups(accessToken) {
 				response.data.paging &&
 				response.data.paging.next
 			) {
-				response = await axios.get(response.data.paging.next);
-				appInstalledGroups = [...appInstalledGroups, ...response.data.data];
+				try {
+					response = await axios.get(response.data.paging.next);
+					appInstalledGroups = [...appInstalledGroups, ...response.data.data];
+				} catch (error) {
+					break;
+				}
 			}
 
 			appInstalledGroups = appInstalledGroups.map(groupData => groupData.id);
-			const userGroupsUrl = `https://graph.facebook.com/v9.0/me/groups?fields=id%2Cname%2Cadministrator&access_token=${accessToken}`;
+			const userGroupsUrl = `https://graph.facebook.com/v9.0/me/groups?limit=2000&access_token=${accessToken}`;
 			let groups = [];
 			let groupsResponse = await axios.get(userGroupsUrl);
 			groups = [...groups, ...groupsResponse.data.data];
@@ -649,8 +718,12 @@ function getUserGroups(accessToken) {
 				groupsResponse.data.paging &&
 				groupsResponse.data.paging.next
 			) {
-				groupsResponse = await axios.get(groupsResponse.data.paging.next);
-				groups = [...groups, ...groupsResponse.data.data];
+				try {
+					groupsResponse = await axios.get(groupsResponse.data.paging.next);
+					groups = [...groups, ...groupsResponse.data.data];
+				} catch (error) {
+					break;
+				}
 			}
 
 			const userPostsAvailableGroup = groups.filter(group =>
@@ -658,11 +731,24 @@ function getUserGroups(accessToken) {
 			);
 			resolve(userPostsAvailableGroup);
 		} catch (error) {
+			// console.log(error.response);
 			reject(error);
 		}
 	});
 }
 
+function createUserFile() {
+	return new Promise((resolve, reject) => {
+		fs.writeFile('users.json', '[]', function (err) {
+			if (err) {
+				logger.error('Users file could not be created ');
+				reject(err);
+			}
+			logger.info('Users file created.');
+			resolve('file created');
+		});
+	});
+}
 app.listen(5078, () => {
 	console.log('App listening on port 5078!');
 	try {

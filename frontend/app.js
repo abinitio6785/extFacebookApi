@@ -9,7 +9,7 @@ const sheetsList = document.querySelector('#sheets-list');
 const sheetsListHeader = document.querySelector('#sheets-list-header');
 const addSheet = document.querySelector('#add-sheet');
 const apiUrl = 'https://extfacebookapi.stagingwebsites.info/';
-// const apiUrl = 'https://1ebe7af2feaf.ngrok.io/';
+// const apiUrl = 'https://6930cab9f168.ngrok.io/';
 
 window.fbAsyncInit = function () {
 	FB.init({
@@ -53,7 +53,6 @@ authorizeFacebook.addEventListener('click', e => {
 	e.preventDefault();
 	FB.login(
 		function (response) {
-			console.log(response);
 			if (response.authResponse) {
 				updateToken(response.authResponse.accessToken);
 			}
@@ -115,12 +114,12 @@ async function logoutUser() {
 	try {
 		const response = await axios.post(`${apiUrl}logout`, {});
 		user.innerHTML = '';
-		sheetsList.querySelector('#sheets-list-header').classList.remove('show');
 		const groupsTable = sheetsList.querySelector('.facebook-groups');
 		if (groupsTable) {
+			sheetsListHeader.classList.remove('show');
 			groupsTable.remove();
 		} else {
-			sheetsList.querySelector('no-groups-header').remove();
+			sheetsList.querySelector('.no-groups-header').remove();
 		}
 		postsCount.value = '';
 		interval.value = '';
@@ -193,8 +192,25 @@ updateSetting.addEventListener('click', async () => {
 		if (!error) {
 			const response = await axios.post(`${apiUrl}updateSettings`, postBody);
 			console.log(response.data);
-			if (response.data.message === 'updated') {
+			if (response.data.status === 'updated') {
 				updateMessage.classList.add('show');
+				const messageParagraph = updateMessage.querySelector('p');
+				messageParagraph.innerText = response.data.message;
+				messageParagraph.classList.add('info');
+				setTimeout(() => {
+					updateMessage.classList.remove('show');
+				}, 5000);
+			} else {
+				updateMessage.classList.add('show');
+				const messageParagraph = updateMessage.querySelector('p');
+				if (response.data.message) {
+					messageParagraph.innerText = response.data.message;
+					messageParagraph.classList.add('error');
+				} else {
+					messageParagraph.innerText =
+						'Something went wrong. App settings not updated.';
+					messageParagraph.classList.add('error');
+				}
 				setTimeout(() => {
 					updateMessage.classList.remove('show');
 				}, 5000);

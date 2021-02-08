@@ -9,7 +9,7 @@ const transport = new winston.transports.DailyRotateFile({
 	zippedArchive: false,
 	maxSize: '1m',
 	maxFiles: '30d',
-	utc: true
+	utc: false
 });
 
 const logFormat = winston.format.combine(

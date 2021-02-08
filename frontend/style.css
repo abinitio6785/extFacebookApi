@@ -36,7 +36,14 @@ body {
 	color: black;
 	margin-bottom: 5px;
 	border-radius: 5px;
+}
+
+.app-container .update-message p.info {
 	background-color: #0dcaf0;
+}
+
+.app-container .update-message p.error {
+	background-color: #dc3545;
 }
 
 .app-container .update-message {
