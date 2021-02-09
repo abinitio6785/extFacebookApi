@@ -83,8 +83,7 @@ function fetchGroupPosts(accessToken, postCount, groupsToSheets) {
 						return feedObj;
 					}
 				} catch (error) {
-					const message = error?.response?.data?.error?.message;
-					logger.error(message);
+					reject(error);
 				}
 			});
 			const postsData = await Promise.all(promises);
@@ -381,14 +380,39 @@ async function appHandler() {
 			clearTimeout(snooze);
 			snooze = setTimeout(() => {
 				appInitializer();
+				logger.info('App restarted after 30 mins');
 			}, 30 * 60 * 1000);
 			const message = error?.response?.data?.error?.message;
 			logger.error(message + '. Snoozing App for 30 minutes');
-		} else {
+		} else if (
+			error?.response?.data?.error?.message.includes(
+				'Error validating access token: Session has expired'
+			) &&
+			error?.response?.data?.error?.type === 'OAuthException'
+		) {
 			clearInterval(appInterval);
 			clearTimeout(snooze);
 			const message = error?.response?.data?.error?.message;
-			logger.error(message + '. Stopping Posts Fetching');
+			logger.error(message + ' Stopping Posts Fetching');
+		} else {
+			if (error?.response?.data) {
+				clearInterval(appInterval);
+				clearTimeout(snooze);
+				snooze = setTimeout(() => {
+					appInitializer();
+					logger.info('App restarted after 10 mins');
+				}, 10 * 60 * 1000);
+				const message = error?.response?.data?.error?.message;
+				logger.error(message + '. Snoozing App for 10 minutes');
+			} else {
+				clearInterval(appInterval);
+				clearTimeout(snooze);
+				snooze = setTimeout(() => {
+					appInitializer();
+					logger.info('App restarted after 10 mins');
+				}, 10 * 60 * 1000);
+				logger.error('No error response found.');
+			}
 		}
 	}
 }
@@ -396,28 +420,32 @@ async function appHandler() {
 function appInitializer() {
 	fs.access('./users.json', err => {
 		if (err) {
-			createUserFile().then(res => {});
-		}
-
-		fs.readFile('./users.json', 'utf8', async (err, data) => {
-			if (err) {
-				logger.error('Users file could not be read. App not started');
-				return;
-			}
-			const users = JSON.parse(data);
-			const activeUser = users.filter(user => user.active);
-			if (!activeUser.length) {
+			createUserFile().then(res => {
 				logger.error('No active user found. App not started');
-			} else if (!activeUser[0].accessToken) {
-				logger.error('Access Token not found. App not started');
-			} else if (!activeUser[0].groupsToSheets.length) {
-				logger.error('Groups to sheets not available. App not started');
-			} else {
-				const interval = parseInt(activeUser[0].settings.interval);
-				appInterval = setInterval(appHandler, interval * 60 * 1000);
-				appHandler();
-			}
-		});
+			});
+		} else {
+			fs.readFile('./users.json', 'utf8', async (err, data) => {
+				if (err) {
+					logger.error('Users file could not be read. App not started');
+					return;
+				}
+				const users = JSON.parse(data);
+				const activeUser = users.filter(user => user.active);
+				if (!activeUser.length) {
+					logger.error('No active user found. App not started');
+				} else if (!activeUser[0].accessToken) {
+					logger.error('Access Token not found. App not started');
+				} else if (!activeUser[0].groupsToSheets.length) {
+					logger.error(
+						'Active user groups to sheets not available. App not started'
+					);
+				} else {
+					const interval = parseInt(activeUser[0].settings.interval);
+					appInterval = setInterval(appHandler, interval * 60 * 1000);
+					appHandler();
+				}
+			});
+		}
 	});
 }
 
